@@ -30,7 +30,7 @@ int main()
 
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_port = htons(SERVER_PORT);
-	serverAddr.sin_addr.s_addr = inet_addr("192.210.170.82");
+	serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	if(connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
 	{
 		perror("connect");

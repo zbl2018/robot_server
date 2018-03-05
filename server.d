@@ -1,1 +1,1 @@
-server.o: server.cpp
+server.o: server.cpp include/WaitQuitSignal.h

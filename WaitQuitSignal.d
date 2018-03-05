@@ -1,1 +1,1 @@
-WaitQuitSignal.o: WaitQuitSignal.cpp WaitQuitSignal.h
+WaitQuitSignal.o: WaitQuitSignal.cpp include/WaitQuitSignal.h

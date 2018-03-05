@@ -6,7 +6,10 @@
 #include <sys/socket.h>  
 #include <unistd.h>  
 #include <fcntl.h>  
-#include <netinet/in.h>  
+#include <netinet/in.h>
+#include <signal.h> 
+#include<pthread.h>
+#include "./include/WaitQuitSignal.h" 
 //返回值的宏定义，在开发linux环境时，用0表示成功  
 #define RES_SUC 0  
 #define RES_FAIL -1  
@@ -28,7 +31,9 @@
 #define EPOLL_WAIT_INTERVAL 100   
   
 #define  MAX_BUF_SIZE_READ 1024  
-  
+
+//线程最大数量
+#define MAXNUMBER_THREAD 1000
 static int g_fd_epoll = FD_NULL;  
 static int g_fd_listen_sock = FD_NULL;  
 static int g_run_server = WORK_STATE_RUN;  
@@ -100,20 +105,22 @@ int handle_listen_socket()
     return RES_SUC;  
 } 
 //主循环体  
-int main_loop()  
+void *main_loop(void* args)  
 {  
+    printf("1");
     //创建一个epoll事件的缓冲区，以便存放就绪的文件描述符  
     struct epoll_event* epoll_events = null;  
     epoll_events = (struct epoll_event*)malloc(sizeof(struct epoll_event) * MAX_EPOLL_EVENTS);  
     if(epoll_events == null)  
     {  
         printf("[main_loop] allocating memory for epoll events faill!\n");  
-        return RES_FAIL;  
+        //return RES_FAIL;  
     }  
     int fd_ready_num = 0;  
     printf("[main_loop] server start success at port:%d!\n", LISTNE_PORT);  
     while(g_run_server == WORK_STATE_RUN)  
     {  
+        printf("2");
         //使用epoll来监控所有注册进来的socket，该步骤将以阻塞的方式用epoll_wait等待就绪的描述符，当一直没有描述符就绪时，最多将等待EPOLL_WAIT_INTERVAL毫秒之后，也会返回；  
         fd_ready_num = epoll_wait(g_fd_epoll, epoll_events, MAX_EPOLL_EVENTS, EPOLL_WAIT_INTERVAL);  
         //epoll_wait返回时说明有就绪的socket或者等待的超时时间到了  
@@ -188,6 +195,9 @@ int init_listen_socket()
     printf("[init_listen_socket] init listen socket suc!\n");  
     return g_fd_listen_sock;  
 }
+// void deal_quit_signal(int &fd_listen_sock){
+//     close(fd_listen_sock);  
+// }
 
 /** 
 *初始化服务端程序，成功返回RES_SUC 
@@ -212,20 +222,43 @@ int init()
 }  
 
 int main()  
-{  
-    printf("[main] will start test server!\n");  
+{   //输入ctrl+c等终端终止命令，signal_flag置为false
+    bool signal_flag=true;
+    //static pthread_t thread_id[MAXNUMBER_THREAD];
+    pthread_t tidp;
+    // int ret;NULL
+    // ret = pthread_create()
+    /* 创建线程pthread */
+    /* 为结构体变量b赋值 */ 
+    if ((pthread_create(&tidp, NULL,main_loop, NULL)) == -1)
+    {
+        printf("create error!\n");
+        return 1;
+    }else{
+         printf("[main] will start test server!\n");  
+    }
+     
+
+    //初始化信号处理参数
+    WaitQuitSignal::init();
+    while(WaitQuitSignal::wait(signal_flag)){
+    }   
+   
     //初始化测试服务器  
     if(init() == RES_FAIL)  
     {  
         printf("[main] init fail!\n");  
         return RES_FAIL;  
     }  
-    // 开始长循环工作  
-    if(main_loop() == RES_FAIL)  
-    {  
-        printf("[main] main_loop fail!\n");  
-        return RES_FAIL;  
-    }  
     printf("[main] test server will exit!\n");  
+    close(g_fd_listen_sock); 
+    // 开始长循环工作
+    //signal(SIGINT, deal_quit_signal(g_fd_listen_sock));  
+    // if(main_loop() == RES_FAIL)  
+    // {  
+    //     printf("[main] main_loop fail!\n");  
+    //     return RES_FAIL;  
+    // }  
+    // 
     return RES_SUC;  
 }  

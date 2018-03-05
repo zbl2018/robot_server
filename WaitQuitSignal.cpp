@@ -13,7 +13,7 @@
  *      Author: xian0617 
  */   
 #include <iostream>  
-#include "WaitQuitSignal.h" 
+#include "./include/WaitQuitSignal.h" 
 sigset_t WaitQuitSignal::m_wait_mask;  
 struct timespec WaitQuitSignal::m_time;  
 //call this before thread create  
@@ -33,10 +33,11 @@ void WaitQuitSignal::init(){
 }  
 bool WaitQuitSignal::wait(bool &flag){  
  try{  
+  //std::cout<<"0"<<std::endl;
   siginfo_t sig ;  
   switch(sigtimedwait(&m_wait_mask,&sig,&m_time)){  
-  case SIGINT:  
-  case SIGQUIT:  
+  case SIGINT:
+  case SIGQUIT:
   case SIGTERM:  
    flag=false;  
    break;  
