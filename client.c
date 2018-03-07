@@ -12,11 +12,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include"./include/json/json.h"
 
 #define SERVER_PORT 3557
 
 int main()
 {
+
 	int clientSocket;
 	struct sockaddr_in serverAddr;
 	char sendbuf[200];
@@ -39,11 +41,12 @@ int main()
 
 	printf("connect with destination host...\n");
 
+	std::string strValue = "{\"key1\":\"value1\",\"array\":[{\"key2\":\"value2\"},{\"key2\":\"value3\"},{\"key2\":\"value4\"}]}";
 	while(1)
 	{
 		printf("Input your world:>");
-		//strcpy(sendbuf,"this is a test!");
-		scanf("%s", sendbuf);
+		strcpy(sendbuf,strValue.c_str());
+		//scanf("%s", sendbuf);
 		printf("\n");
 
 		send(clientSocket, sendbuf, strlen(sendbuf), 0);
