@@ -42,8 +42,8 @@ int main()
 	while(1)
 	{
 		printf("Input your world:>");
-		strcpy(sendbuf,"this is a test!");
-		//scanf("%s", sendbuf);
+		//strcpy(sendbuf,"this is a test!");
+		scanf("%s", sendbuf);
 		printf("\n");
 
 		send(clientSocket, sendbuf, strlen(sendbuf), 0);
@@ -52,6 +52,7 @@ int main()
 		iDataNum = recv(clientSocket, recvbuf, 200, 0);
 		recvbuf[iDataNum] = '\0';
 		printf("recv data of my world is: %s\n", recvbuf);
+		//memset(recvbuf,'0',200);
 	}
 	close(clientSocket);
 	return 0;

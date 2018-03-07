@@ -34,9 +34,10 @@
 
 //线程最大数量
 #define MAXNUMBER_THREAD 1000
-static int g_fd_epoll = FD_NULL;  
-static int g_fd_listen_sock = FD_NULL;  
-static int g_run_server = WORK_STATE_RUN;  
+
+static int g_fd_epoll = FD_NULL;//epoll_ctl返回值/epoll句柄
+static int g_fd_listen_sock = FD_NULL;//监听socket的句柄  
+static int g_run_server = WORK_STATE_RUN;//服务器正常运行  
 
 //注册一个socket到epoll  
 int reg_socket(int new_sock)  
@@ -61,18 +62,32 @@ int handle_business_socket(int ready_socket)
         printf("[handle_business_socket] socket:%d is invalid!\n", ready_socket);  
         return RES_FAIL;  
     }  
-    char* read_buf = (char* )malloc(sizeof(char) * MAX_BUF_SIZE_READ);  
+    char* send_buf=(char* )malloc(sizeof(char) * MAX_BUF_SIZE_READ);
+    char* read_buf = (char* )malloc(sizeof(char) * MAX_BUF_SIZE_READ);
+    memset(send_buf, '\0', MAX_BUF_SIZE_READ);  
     memset(read_buf, '\0', MAX_BUF_SIZE_READ);  
     int read_len = read(ready_socket, read_buf, MAX_BUF_SIZE_READ);  
     if(read_len > 0)  
     {  
         printf("[handle_business_socket] recv msg from socket:%d, content:%s\n", ready_socket, read_buf);  
+        send(ready_socket,send_buf,MAX_BUF_SIZE_READ,0);
         if(write(ready_socket, read_buf, read_len) != read_len)  
         {  
             printf("[handle_business_socket] write msg into socket:%d fail! content:[%s]!\n", ready_socket, read_buf);  
-        }  
-    }  
-    free(read_buf);  
+        }           
+        strcpy(send_buf,"send successful!\n");
+        if(send(ready_socket,send_buf,MAX_BUF_SIZE_READ,0)<0)
+        {
+           // perror("send error!");
+           printf("send fail!");
+        }
+        else {
+            printf("send successful!");
+        }
+    }
+    free(send_buf);  
+    free(read_buf);   
+    return RES_SUC;  
 } 
 //处理就绪的监听socket,接收新的连接进来，并为之产生一个业务socket  
 int handle_listen_socket()  
@@ -87,7 +102,7 @@ int handle_listen_socket()
           
     //设置监听socket的状态为非阻塞  
     int opt = 1;  
-    opt = fcntl(new_sock, F_GETFL, 0);  
+    opt = fcntl(new_sock, F_GETFL, 0);//阻塞锁  
     if(opt == -1 || fcntl(new_sock, F_SETFL, opt | O_NONBLOCK) == -1)  
     {  
         printf("[handle_listen_socket] set socket state: O_NONBLOCK fail!\n");  
@@ -107,9 +122,10 @@ int handle_listen_socket()
 //主循环体  
 void *main_loop(void* args)  
 {  
-    printf("1");
+    //printf("1");
     //创建一个epoll事件的缓冲区，以便存放就绪的文件描述符  
-    struct epoll_event* epoll_events = null;  
+    struct epoll_event* epoll_events = null;
+    //监听的事务最大数：MAX_EPOLL_EVENTS  
     epoll_events = (struct epoll_event*)malloc(sizeof(struct epoll_event) * MAX_EPOLL_EVENTS);  
     if(epoll_events == null)  
     {  
@@ -120,8 +136,8 @@ void *main_loop(void* args)
     printf("[main_loop] server start success at port:%d!\n", LISTNE_PORT);  
     while(g_run_server == WORK_STATE_RUN)  
     {  
-        printf("2");
-        //使用epoll来监控所有注册进来的socket，该步骤将以阻塞的方式用epoll_wait等待就绪的描述符，当一直没有描述符就绪时，最多将等待EPOLL_WAIT_INTERVAL毫秒之后，也会返回；  
+        //使用epoll来监控所有注册进来的socket，该步骤将以阻塞的方式用epoll_wait等待就绪的描述符，
+        //当一直没有描述符就绪时，最多将等待EPOLL_WAIT_INTERVAL毫秒之后，也会返回；  
         fd_ready_num = epoll_wait(g_fd_epoll, epoll_events, MAX_EPOLL_EVENTS, EPOLL_WAIT_INTERVAL);  
         //epoll_wait返回时说明有就绪的socket或者等待的超时时间到了  
         int i = 0;  
@@ -138,7 +154,7 @@ void *main_loop(void* args)
             //以下步骤将处理业务socket  
             if(handle_business_socket(epoll_events[i].data.fd) == RES_FAIL)  
             {  
-                printf("[main_loop] handle business socket:%s faill!\n", epoll_events[i].data.fd);  
+                printf("[main_loop] handle business socket:%d faill!\n", epoll_events[i].data.fd);  
             }  
         }  
     }  
@@ -165,8 +181,7 @@ int init_listen_socket()
         printf("[init_listen_socket] set socket state: O_NONBLOCK fail!\n");  
         close(g_fd_listen_sock);  
         return RES_FAIL;  
-    }  
-      
+    }     
     //绑定socket到本地端口  
     struct sockaddr_in serv_addr;  
     serv_addr.sin_family = AF_INET;  
@@ -216,8 +231,7 @@ int init()
     {  
         printf("[init] epoll_create fail!\n");  
         return RES_FAIL;  
-    }  
-      
+    }      
     return RES_SUC;  
 }  
 
@@ -226,6 +240,13 @@ int main()
     bool signal_flag=true;
     //static pthread_t thread_id[MAXNUMBER_THREAD];
     pthread_t tidp;
+     //初始化测试服务器  
+    if(init() == RES_FAIL)  
+    {  
+        printf("[main] init fail!\n");  
+        return RES_FAIL;  
+    }  
+    printf("[main] test server will exit!\n");  
     // int ret;NULL
     // ret = pthread_create()
     /* 创建线程pthread */
@@ -237,20 +258,11 @@ int main()
     }else{
          printf("[main] will start test server!\n");  
     }
-     
-
     //初始化信号处理参数
     WaitQuitSignal::init();
     while(WaitQuitSignal::wait(signal_flag)){
-    }   
-   
-    //初始化测试服务器  
-    if(init() == RES_FAIL)  
-    {  
-        printf("[main] init fail!\n");  
-        return RES_FAIL;  
-    }  
-    printf("[main] test server will exit!\n");  
+    }
+    printf("closed server!\n");   
     close(g_fd_listen_sock); 
     // 开始长循环工作
     //signal(SIGINT, deal_quit_signal(g_fd_listen_sock));  
