@@ -1,0 +1,9 @@
+#MakeFile
+server: server.o WaitQuitSignal.o
+server.o: server.cpp
+	cc -c server.cpp
+WaitQuitSignal.o: WaitQuitSignal.cpp ./WaitQuitSignal.h
+	cc -c WaitQuitSignal.cpp
+.PHONY:clean
+clean:
+	rm *.o server
