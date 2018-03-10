@@ -12,15 +12,22 @@ CEpollServer::~CEpollServer()
     close(m_isock);  
 }  
 
-bool CEpollServer::InitServer(const char* pIp, int iPort)  
+bool CEpollServer::InitServer(const char* pIp, int iPort,char temp_key[],char temp_iv[])  
 {  
+    //初始化加密秘钥，向量
+    if(false==my_aes.initKV(temp_key,temp_iv))
+    {
+        printf("fail to initKV!\n");  
+        return false;  
+    }
+    //创建epoll句柄
     m_iEpollFd = epoll_create(_MAX_SOCKFD_COUNT);  
 
     //设置非阻塞模式  
     int opts = O_NONBLOCK;  
     if(fcntl(m_iEpollFd,F_SETFL,opts)<0)  
     {  
-        printf("fail set the mode of ’O_NONBLOCK‘!\n");  
+        printf("fail to set the mode of ’O_NONBLOCK‘!\n");  
         return false;  
     }  
 
@@ -53,12 +60,46 @@ bool CEpollServer::InitServer(const char* pIp, int iPort)
     printf("starting listen...\n");  
     }  
     // 监听线程，此线程负责接收客户端连接，加入到epoll中,this 指针传入ListenThread所在类对象指针
-    if ( pthread_create( &m_ListenThreadId, 0, ( void * ( * ) ( void * ) ) ListenThread, this ) != 0 )  
+    if (pthread_create( &m_ListenThreadId, 0, ( void * ( * ) ( void * ) ) ListenThread, this ) != 0 )  
     {  
         printf("create listen thread failly!");  
         return false;  
     }  
-}  
+} 
+int CEpollServer::Deal_EpollIn_SomeThing(int socket_fd,char buffer[]){
+    Json::Reader reader;
+    Json::Value value;
+    //decryption
+    string cipher=my_aes.decrypt(buffer);
+    printf("解密：%s\n",cipher);
+    if (reader.parse(cipher, value))
+    {
+        std::string out = value["name"].asString();
+        std::cout << out << std::endl;
+        cout<<value["key"].asInt()<<endl;
+        // const Json::Value arrayObj = value["array"];
+        // for (int i=0; i<arrayObj.size(); i++)
+        // {
+        //     out = arrayObj[i]["key2"].asString();
+        //     std::cout << out;
+        //     if (i != arrayObj.size() - 1)
+        //     std::cout << std::endl;
+        // }
+    }
+    // if()
+    // send(client_socket, sendbuff, strlen(sendbuff)+1, MSG_NOSIGNAL)
+    cipher="this is a test!";
+    cipher=my_aes.encrypt(cipher);
+    if(send(socket_fd,cipher.c_str(),cipher.length()+1,MSG_NOSIGNAL)<=0){
+        printf("fail to send message to client!\n");
+    }
+    else{
+        printf("send successfully!\n");
+    }
+} 
+int Deal_EpollOUT_Encryption(char buffer[]){
+
+}
 // 监听线程  
 void CEpollServer::ListenThread( void* lpVoid )  
 {  
@@ -110,25 +151,10 @@ void CEpollServer::Run()
             }  
             else  
             {  
-               
-                Json::Reader reader;
-	            Json::Value value;
-                if (reader.parse( buffer, value))
-                {
-                    std::string out = value["key1"].asString();
-                    std::cout << out << std::endl;
-                    const Json::Value arrayObj = value["array"];
-                    for (int i=0; i<arrayObj.size(); i++)
-                    {
-                        out = arrayObj[i]["key2"].asString();
-                        std::cout << out;
-                        if (i != arrayObj.size() - 1)
-                        std::cout << std::endl;
-                    }
-                }
+                Deal_EpollIn_SomeThing(client_socket,buffer);
                 printf("Received Msg Content of client %d:%s\n",events[i].data.fd,buffer);  
                 struct epoll_event ev;  
-                ev.events = EPOLLOUT | EPOLLERR | EPOLLHUP;  
+                ev.events = EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLIN;  
                 ev.data.fd = client_socket;     //记录socket句柄  
                 epoll_ctl(m_iEpollFd, EPOLL_CTL_MOD, client_socket, &ev);  
             }  
@@ -136,24 +162,24 @@ void CEpollServer::Run()
         //当前socket_fd未触发EPOLLIN事件，触发了EPOLLOUT事件，可以向客户端发送数据
         else if(events[i].events & EPOLLOUT)//监听到写事件，发送数据  
         {  
-            char sendbuff[1024];  
-            sprintf(sendbuff, "Hello, client fd: %d\n", client_socket);  
-            int sendsize = send(client_socket, sendbuff, strlen(sendbuff)+1, MSG_NOSIGNAL);  
-            if(sendsize <= 0)  
-            {  
-                struct epoll_event event_del;  
-                event_del.data.fd = events[i].data.fd;  
-                event_del.events = 0;  
-                epoll_ctl(m_iEpollFd, EPOLL_CTL_DEL, event_del.data.fd, &event_del);  
-            }  
-            else  
-            {  
-                printf("Server reply msg ok! buffer: %s\n", sendbuff);  
-                struct epoll_event ev;  
-                ev.events = EPOLLIN | EPOLLERR | EPOLLHUP;  
-                ev.data.fd = client_socket;     //记录socket句柄  
-                epoll_ctl(m_iEpollFd, EPOLL_CTL_MOD/*修改*/, client_socket, &ev);  
-            }  
+            // char sendbuff[1024];  
+            // sprintf(sendbuff, "Hello, client fd: %d\n", client_socket);  
+            // int sendsize = send(client_socket, sendbuff, strlen(sendbuff)+1, MSG_NOSIGNAL);  
+            // if(sendsize <= 0)  
+            // {  
+            //     struct epoll_event event_del;  
+            //     event_del.data.fd = events[i].data.fd;  
+            //     event_del.events = 0;  
+            //     epoll_ctl(m_iEpollFd, EPOLL_CTL_DEL, event_del.data.fd, &event_del);  
+            // }  
+            // else  
+            // {  
+            //     printf("Server reply msg ok! buffer: %s\n", sendbuff);  
+            //     struct epoll_event ev;  
+            //     ev.events = EPOLLIN | EPOLLERR | EPOLLHUP;  
+            //     ev.data.fd = client_socket;     //记录socket句柄  
+            //     epoll_ctl(m_iEpollFd, EPOLL_CTL_MOD/*修改*/, client_socket, &ev);  
+            // }  
         }  
         else  
         {  
