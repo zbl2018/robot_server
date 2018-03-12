@@ -17,4 +17,4 @@ cepollserver.o: cepollserver.cpp include/cepollserver.h \
  include/../include/cryptopp/integer.h \
  include/../include/cryptopp/modes.h \
  include/../include/cryptopp/strciphr.h \
- include/../include/cryptopp/argnames.h
+ include/../include/cryptopp/argnames.h include/MyDB.h

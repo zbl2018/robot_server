@@ -17,4 +17,4 @@ main.o: main.cpp include/cepollserver.h include/json/json.h \
  include/../include/cryptopp/integer.h \
  include/../include/cryptopp/modes.h \
  include/../include/cryptopp/strciphr.h \
- include/../include/cryptopp/argnames.h
+ include/../include/cryptopp/argnames.h include/MyDB.h

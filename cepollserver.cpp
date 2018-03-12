@@ -20,6 +20,13 @@ bool CEpollServer::InitServer(const char* pIp, int iPort,char temp_key[],char te
         printf("fail to initKV!\n");  
         return false;  
     }
+    //初始化数据库链接
+    if(false==my_db.initDB("localhost", "root", "4817", "server"/*数据库名称*/))
+    {
+        printf("fail to init database!\n");
+        return false;
+    }
+
     //创建epoll句柄
     m_iEpollFd = epoll_create(_MAX_SOCKFD_COUNT);  
 
@@ -151,6 +158,7 @@ void CEpollServer::Run()
             }  
             else  
             {  
+                //处理接收到的数据
                 Deal_EpollIn_SomeThing(client_socket,buffer);
                 printf("Received Msg Content of client %d:%s\n",events[i].data.fd,buffer);  
                 struct epoll_event ev;  
